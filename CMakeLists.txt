@@ -38,6 +38,7 @@ target_sources(kaldi-asr-parallel-client
 )
 target_include_directories(kaldi-asr-parallel-client SYSTEM
   PRIVATE
+    /opt/client/include
     /opt/kaldi/src
     /opt/kaldi/tools/openfst/include
 )
@@ -53,15 +54,17 @@ target_compile_options(kaldi-asr-parallel-client
 target_link_directories(kaldi-asr-parallel-client
   PRIVATE
     /opt/kaldi/src/lib
+    /opt/client/lib
 )
 target_link_libraries(kaldi-asr-parallel-client
   PRIVATE
-    TritonClient::grpcclient_static
     -lkaldi-base
     -lkaldi-util
     -lkaldi-matrix
     -lkaldi-feat
     -lkaldi-lat
+    -lgrpcclient
+    -lprotobuf
 )
 
 #
