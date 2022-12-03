@@ -33,7 +33,7 @@ add_executable(kaldi-asr-parallel-client)
 add_executable(TritonKaldiGrpcClient::kaldi-asr-parallel-client ALIAS kaldi-asr-parallel-client)
 target_sources(kaldi-asr-parallel-client
   PRIVATE
-    kaldi_asr_parallel_client.cc
+    minimal_client.cc
     asr_client_imp.cc
 )
 target_include_directories(kaldi-asr-parallel-client SYSTEM
