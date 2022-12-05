@@ -15,26 +15,7 @@ enum {
   NCLIENTS = 10,
 };
 
-int main(int argc, char *const argv[]) {
-  if (argc < 2) {
-    std::cerr << "Usage: " << argv[0] << " FILE" << '\n';
-    return 1;
-  }
-
-  std::ifstream istrm(argv[1], std::ios::binary);
-  kaldi::WaveData wave_data;
-
-  wave_data.Read(istrm);
-
-  float samp_freq = wave_data.SampFreq();
-  double duration = wave_data.Duration();
-
-  std::cout << "Loaded file with frequency " << samp_freq << "hz, duration "
-            << duration << '\n';
-
-  TritonASRClient asr_client(URL, MODEL, NCLIENTS, true, false, false,
-                             samp_freq);
-
+int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data) {
   uint64_t index = 0;
   int32 offset = 0;
 
@@ -63,6 +44,31 @@ int main(int argc, char *const argv[]) {
       break;
     }
   }
+
+  return 0;
+}
+
+int main(int argc, char *const argv[]) {
+  if (argc < 2) {
+    std::cerr << "Usage: " << argv[0] << " FILE" << '\n';
+    return 1;
+  }
+
+  std::ifstream istrm(argv[1], std::ios::binary);
+  kaldi::WaveData wave_data;
+
+  wave_data.Read(istrm);
+
+  float samp_freq = wave_data.SampFreq();
+  double duration = wave_data.Duration();
+
+  std::cout << "Loaded file with frequency " << samp_freq << "hz, duration "
+            << duration << '\n';
+
+  TritonASRClient asr_client(URL, MODEL, NCLIENTS, true, false, false,
+                             samp_freq);
+
+  feed_wav(asr_client, wave_data);
 
   asr_client.WaitForCallbacks();
 }
