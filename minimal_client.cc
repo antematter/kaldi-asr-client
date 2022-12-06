@@ -2,7 +2,9 @@
 #include "feat/wave-reader.h"
 #include <fstream>
 #include <iostream>
+#include <istream>
 #include <random>
+#include <streambuf>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -13,6 +15,16 @@ constexpr auto MODEL = "kaldi_online";
 enum {
   CHUNK_LENGTH = 8160,
   NCLIENTS = 10,
+};
+
+struct client {
+  TritonASRClient asr_client;
+  std::vector<kaldi::WaveData> inputs;
+  std::vector<std::string> outputs;
+};
+
+struct membuf : std::streambuf {
+  membuf(char *begin, char *end) { this->setg(begin, begin, end); }
 };
 
 int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data) {
@@ -46,6 +58,16 @@ int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data) {
   }
 
   return 0;
+}
+
+int feed_wav_from_charbuf(TritonASRClient &asr_client, char *buf, size_t len) {
+  membuf sbuf(buf, buf + len);
+  std::istream is(&sbuf);
+
+  kaldi::WaveData wave_data;
+  wave_data.Read(is);
+
+  return feed_wav(asr_client, wave_data);
 }
 
 int main(int argc, char *const argv[]) {
