@@ -26,11 +26,8 @@
 
 cmake_minimum_required(VERSION 3.17..3.20)
 
-#
-# gRPC client for custom Kaldi backend
-#
-add_executable(kaldi-asr-parallel-client)
-add_executable(TritonKaldiGrpcClient::kaldi-asr-parallel-client ALIAS kaldi-asr-parallel-client)
+add_library(kaldi-asr-parallel-client SHARED)
+
 target_sources(kaldi-asr-parallel-client
   PRIVATE
     minimal_client.cc
