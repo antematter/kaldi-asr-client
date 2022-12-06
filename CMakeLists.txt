@@ -30,7 +30,7 @@ add_library(kaldi-asr-parallel-client SHARED)
 
 target_sources(kaldi-asr-parallel-client
   PRIVATE
-    minimal_client.cc
+    kaldi_asr_parallel_client.cc
     asr_client_imp.cc
 )
 target_include_directories(kaldi-asr-parallel-client SYSTEM
