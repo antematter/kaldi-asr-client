@@ -84,10 +84,7 @@ void TritonASRClient::CreateClientContext() {
               std::vector<std::string> text;
               FAIL_IF_ERR(result_ptr->StringData(ctm_ ? "CTM" : "TEXT", &text),
                           "unable to get TEXT or CTM output");
-              std::lock_guard<std::mutex> lk(stdout_m_);
-              std::cout << "CORR_ID " << corr_id;
-              std::cout << (ctm_ ? "\n" : "\t\t");
-              std::cout << text[0] << std::endl;
+	      infer_callback_(corr_id, text);
             }
 
             std::vector<std::string> lattice_bytes;
@@ -244,14 +241,15 @@ TritonASRClient::TritonASRClient(const std::string& url,
                                  const std::string& model_name,
                                  const int nclients, bool print_results,
                                  bool print_partial_results, bool ctm,
-                                 float samp_freq)
+                                 float samp_freq, const TritonCallback &infer_callback)
     : url_(url),
       model_name_(model_name),
       nclients_(nclients),
       print_results_(print_results),
       print_partial_results_(print_partial_results),
       ctm_(ctm),
-      samp_freq_(samp_freq) {
+      samp_freq_(samp_freq),
+      infer_callback_(infer_callback) {
   nclients_ = std::max(nclients_, 1);
   for (int i = 0; i < nclients_; ++i) CreateClientContext();
 

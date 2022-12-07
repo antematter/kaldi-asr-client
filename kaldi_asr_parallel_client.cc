@@ -79,6 +79,10 @@ int client_infer_begin(struct client *client, size_t len) {
   client->inputs.reserve(client->expected_inputs);
   client->outputs.reserve(client->expected_inputs);
 
+  for (size_t i = 0; i < client->expected_inputs; i++) {
+    client->outputs.emplace_back();
+  }
+
   return 0;
 }
 
@@ -112,8 +116,14 @@ int client_infer_perform(struct client *client) {
   std::cout << "Loaded file with frequency " << samp_freq << "hz, duration "
             << duration << '\n';
 
+  auto infer_callback = [&](size_t corr_id, std::vector<std::string> text) {
+    for (auto &str : text) {
+      client->outputs[0] += str;
+    }
+  };
+
   TritonASRClient asr_client(URL, MODEL, NCLIENTS, true, false, false,
-                             samp_freq);
+                             samp_freq, TritonCallback(infer_callback));
 
   feed_wav(asr_client, wave_data);
   asr_client.WaitForCallbacks();
@@ -139,6 +149,7 @@ const char *client_infer_output(struct client *client) {
 }
 }
 
+#if 0
 int main(int argc, char *const argv[]) {
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " FILE" << '\n';
@@ -163,3 +174,4 @@ int main(int argc, char *const argv[]) {
 
   asr_client.WaitForCallbacks();
 }
+#endif
