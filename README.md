@@ -1,5 +1,14 @@
 # kaldi-asr-client
 
+# Building
+
+```sh
+./install_deps.sh
+./build.sh
+cmake -B build
+cmake --build build
+```
+
 # Usage
 
 The python library is pretty simple, with a `Client` class that has an `infer` method.
