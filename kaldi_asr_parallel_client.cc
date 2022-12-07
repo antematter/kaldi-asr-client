@@ -1,5 +1,6 @@
 #include "asr_client_imp.h"
 #include "feat/wave-reader.h"
+#include <assert.h>
 #include <fstream>
 #include <iostream>
 #include <istream>
@@ -28,7 +29,8 @@ struct membuf : std::streambuf {
   membuf(char *begin, char *end) { this->setg(begin, begin, end); }
 };
 
-int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data) {
+int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data,
+             const size_t corr_id) {
   uint64_t index = 0;
   int32 offset = 0;
 
@@ -48,8 +50,8 @@ int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data) {
               << "is_first: " << is_first_chunk
               << ", is_last: " << is_last_chunk << '\n';
 
-    asr_client.SendChunk(1, is_first_chunk, is_last_chunk, wave_part.Data(),
-                         wave_part.SizeInBytes(), index++);
+    asr_client.SendChunk(corr_id, is_first_chunk, is_last_chunk,
+                         wave_part.Data(), wave_part.SizeInBytes(), index++);
 
     offset += num_samp;
 
@@ -108,24 +110,33 @@ int client_infer_perform(struct client *client) {
     std::exit(1);
   }
 
-  kaldi::WaveData &wave_data = client->inputs[0];
+  float samp_freq = client->inputs[0].SampFreq();
 
-  float samp_freq = wave_data.SampFreq();
-  double duration = wave_data.Duration();
-
-  std::cout << "Loaded file with frequency " << samp_freq << "hz, duration "
-            << duration << '\n';
+  for (auto &wave_data : client->inputs) {
+    if (wave_data.SampFreq() != samp_freq) {
+      std::cerr << "Non uniform sample frequency!" << '\n';
+      std::exit(1);
+    }
+  }
 
   auto infer_callback = [&](size_t corr_id, std::vector<std::string> text) {
+    assert(corr_id > 0);
+
     for (auto &str : text) {
-      client->outputs[0] += str;
+      client->outputs[corr_id - 1] += str;
     }
   };
 
+  // std::cout << "Using [...args]"
   TritonASRClient asr_client(URL, MODEL, NCLIENTS, true, false, false,
                              samp_freq, TritonCallback(infer_callback));
 
-  feed_wav(asr_client, wave_data);
+  size_t corr_id = 1;
+
+  for (auto &wave_data : client->inputs) {
+    feed_wav(asr_client, wave_data, corr_id++);
+  }
+
   asr_client.WaitForCallbacks();
 
   if (client->outputs.size() != client->inputs.size()) {
