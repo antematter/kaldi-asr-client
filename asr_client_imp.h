@@ -14,11 +14,11 @@
 
 #include <grpc_client.h>
 
+#include <functional>
 #include <queue>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <functional>
 
 #ifndef TRITON_KALDI_ASR_CLIENT_H_
 #define TRITON_KALDI_ASR_CLIENT_H_
@@ -70,20 +70,20 @@ class TritonASRClient {
   std::unordered_map<uint64_t, Result> results_;
   std::mutex results_m_;
 
- public:
-  TritonASRClient(const std::string& url, const std::string& model_name,
+public:
+  TritonASRClient(const std::string &url, const std::string &model_name,
                   const int ncontextes, bool print_results,
                   bool print_partial_results, bool ctm, float samp_freq,
-		  const TritonCallback &infer_callback_);
+                  const TritonCallback &infer_callback_);
 
   void CreateClientContext();
   void SendChunk(uint64_t corr_id, bool start_of_sequence, bool end_of_sequence,
-                 float* chunk, int chunk_byte_size, uint64_t index);
+                 float *chunk, int chunk_byte_size, uint64_t index);
   void WaitForCallbacks();
   void PrintStats(bool print_latency_stats, bool print_throughput);
   void WriteLatticesToFile(
-      const std::string& clat_wspecifier,
-      const std::unordered_map<uint64_t, std::string>& corr_id_and_keys);
+      const std::string &clat_wspecifier,
+      const std::unordered_map<uint64_t, std::string> &corr_id_and_keys);
 };
 
-#endif  // TRITON_KALDI_ASR_CLIENT_H_
+#endif // TRITON_KALDI_ASR_CLIENT_H_
