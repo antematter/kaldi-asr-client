@@ -19,6 +19,7 @@ BUILD_DIR="$BASEDIR/.build"
 CLIENT_BUILD="$BUILD_DIR/client"
 OPENSSL_BUILD="$BUILD_DIR/openssl"
 
+mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
 [ -f "$OPENSSL_TAR" ] || curl -L "$OPENSSL" > "$OPENSSL_TAR"
