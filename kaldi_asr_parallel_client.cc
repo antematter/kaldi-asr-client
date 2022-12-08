@@ -10,14 +10,11 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
-enum {
-  CHUNK_LENGTH = 8160,
-  NCLIENTS = 10,
-};
 
 struct client {
   bool verbose;
   int chunk_length;
+  float samp_freq;
   std::vector<std::unique_ptr<TritonASRClient>> clients;
   std::vector<kaldi::WaveData> inputs;
   std::vector<std::string> outputs;
@@ -121,11 +118,13 @@ int client_infer_perform_(struct client *client) {
     throw std::runtime_error("No inputs fed");
   }
 
-  float samp_freq = client->inputs[0].SampFreq();
-
   for (auto &wave_data : client->inputs) {
-    if (wave_data.SampFreq() != samp_freq) {
-      throw std::runtime_error("Non-uniform sample frequency");
+    if (wave_data.SampFreq() != client->samp_freq) {
+      std::stringstream ss;
+      ss << "Non-uniform sample frequency! Expected " << client->samp_freq
+         << ", got " << wave_data.SampFreq();
+
+      throw std::runtime_error(ss.str());
     }
   }
 
@@ -162,6 +161,7 @@ int client_set_config_(struct client *client, float samp_freq, char *servers[],
 
   client->verbose = verbose;
   client->chunk_length = chunk_length;
+  client->samp_freq = samp_freq;
 
   while (*servers) {
     std::unique_ptr<TritonASRClient> asr_client(
