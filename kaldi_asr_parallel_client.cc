@@ -39,8 +39,7 @@ int invoke_wrap_exception(Callable fn, struct client *client, Args &...args) {
     client->last_error = e.what();
     return -1;
   } catch (...) {
-    std::cerr << "Thrown exception doesn't inherit from std::exception!"
-              << '\n';
+    std::cerr << "Thrown exception doesn't inherit from std::exception!\n";
     std::abort();
   }
 }
@@ -108,22 +107,22 @@ int client_infer_feed_(struct client *client, char *bytes, size_t len) {
 
 int client_infer_perform_(struct client *client) {
   if (client->expected_inputs != client->inputs.size()) {
-    std::cerr << "Expected " << client->expected_inputs << " inputs but got "
-              << client->inputs.size() << "!\n";
-    std::exit(1);
+    std::stringstream ss;
+    ss << "Expected " << client->expected_inputs << " inputs but got "
+       << client->inputs.size() << "inputs";
+
+    throw std::runtime_error(ss.str());
   }
 
   if (client->inputs.size() == 0) {
-    std::cerr << "No inputs fed!" << '\n';
-    std::exit(1);
+    throw std::runtime_error("No inputs fed");
   }
 
   float samp_freq = client->inputs[0].SampFreq();
 
   for (auto &wave_data : client->inputs) {
     if (wave_data.SampFreq() != samp_freq) {
-      std::cerr << "Non uniform sample frequency!" << '\n';
-      std::exit(1);
+      throw std::runtime_error("Non-uniform sample frequency");
     }
   }
 
@@ -147,11 +146,7 @@ int client_infer_perform_(struct client *client) {
 
   asr_client.WaitForCallbacks();
 
-  if (client->outputs.size() != client->inputs.size()) {
-    std::cerr << "Outputs (" << client->outputs.size()
-              << ") not equal to Inputs (" << client->inputs.size() << ")\n";
-    std::exit(1);
-  }
+  assert(client->outputs.size() == client->inputs.size());
 
   return 0;
 }

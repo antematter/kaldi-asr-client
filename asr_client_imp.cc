@@ -26,40 +26,42 @@
 #include "lat/lattice-functions.h"
 #include "util/kaldi-table.h"
 
-#define FAIL_IF_ERR(X, MSG)                                                    \
+#define RAISE_IF_ERR(X, MSG)                                                   \
   {                                                                            \
     tc::Error err = (X);                                                       \
     if (!err.IsOk()) {                                                         \
-      std::cerr << "error: " << (MSG) << ": " << err << std::endl;             \
-      exit(1);                                                                 \
+      std::stringstream ss;                                                    \
+      ss << (MSG) << ": " << err;                                              \
+      throw std::runtime_error(ss.str());                                      \
     }                                                                          \
   }
 
 void TritonASRClient::CreateClientContext() {
   clients_.emplace_back();
   TritonClient &client = clients_.back();
-  FAIL_IF_ERR(tc::InferenceServerGrpcClient::Create(&client.triton_client, url_,
-                                                    /*verbose*/ false),
-              "unable to create triton client");
+  RAISE_IF_ERR(tc::InferenceServerGrpcClient::Create(&client.triton_client,
+                                                     url_,
+                                                     /*verbose*/ false),
+               "unable to create triton client");
 
-  FAIL_IF_ERR(
+  RAISE_IF_ERR(
       client.triton_client->StartStream(
           [&](tc::InferResult *result) {
             double end_timestamp = gettime_monotonic();
             std::unique_ptr<tc::InferResult> result_ptr(result);
-            FAIL_IF_ERR(result_ptr->RequestStatus(),
-                        "inference request failed");
+            RAISE_IF_ERR(result_ptr->RequestStatus(),
+                         "inference request failed");
             std::string request_id;
-            FAIL_IF_ERR(result_ptr->Id(&request_id),
-                        "unable to get request id for response");
+            RAISE_IF_ERR(result_ptr->Id(&request_id),
+                         "unable to get request id for response");
             uint64_t corr_id =
                 std::stoi(std::string(request_id, 0, request_id.find("_")));
             bool end_of_stream = (request_id.back() == '1');
             if (!end_of_stream) {
               if (print_partial_results_) {
                 std::vector<std::string> text;
-                FAIL_IF_ERR(result_ptr->StringData("TEXT", &text),
-                            "unable to get TEXT output");
+                RAISE_IF_ERR(result_ptr->StringData("TEXT", &text),
+                             "unable to get TEXT output");
                 std::lock_guard<std::mutex> lk(stdout_m_);
                 std::cout << "CORR_ID " << corr_id << "\t[partial]\t" << text[0]
                           << '\n';
@@ -75,21 +77,20 @@ void TritonASRClient::CreateClientContext() {
                 start_timestamp = it->second;
                 start_timestamps_.erase(it);
               } else {
-                std::cerr << "start_timestamp not found" << std::endl;
-                exit(1);
+                throw std::runtime_error("start_timestamp not found");
               }
             }
 
             if (print_results_) {
               std::vector<std::string> text;
-              FAIL_IF_ERR(result_ptr->StringData(ctm_ ? "CTM" : "TEXT", &text),
-                          "unable to get TEXT or CTM output");
+              RAISE_IF_ERR(result_ptr->StringData(ctm_ ? "CTM" : "TEXT", &text),
+                           "unable to get TEXT or CTM output");
               infer_callback_(corr_id, text);
             }
 
             std::vector<std::string> lattice_bytes;
-            FAIL_IF_ERR(result_ptr->StringData("RAW_LATTICE", &lattice_bytes),
-                        "unable to get RAW_LATTICE output");
+            RAISE_IF_ERR(result_ptr->StringData("RAW_LATTICE", &lattice_bytes),
+                         "unable to get RAW_LATTICE output");
 
             {
               double elapsed = end_timestamp - start_timestamp;
@@ -119,30 +120,30 @@ void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
   // Initialize the inputs with the data.
   tc::InferInput *wave_data_ptr;
   std::vector<int64_t> wav_shape{1, samps_per_chunk_};
-  FAIL_IF_ERR(
+  RAISE_IF_ERR(
       tc::InferInput::Create(&wave_data_ptr, "WAV_DATA", wav_shape, "FP32"),
       "unable to create 'WAV_DATA'");
   std::shared_ptr<tc::InferInput> wave_data_in(wave_data_ptr);
-  FAIL_IF_ERR(wave_data_in->Reset(), "unable to reset 'WAV_DATA'");
+  RAISE_IF_ERR(wave_data_in->Reset(), "unable to reset 'WAV_DATA'");
   uint8_t *wave_data = reinterpret_cast<uint8_t *>(chunk);
   if (chunk_byte_size < max_chunk_byte_size_) {
     std::memcpy(&chunk_buf_[0], chunk, chunk_byte_size);
     wave_data = &chunk_buf_[0];
   }
-  FAIL_IF_ERR(wave_data_in->AppendRaw(wave_data, max_chunk_byte_size_),
-              "unable to set data for 'WAV_DATA'");
+  RAISE_IF_ERR(wave_data_in->AppendRaw(wave_data, max_chunk_byte_size_),
+               "unable to set data for 'WAV_DATA'");
 
   // Dim
   tc::InferInput *dim_ptr;
   std::vector<int64_t> shape{1, 1};
-  FAIL_IF_ERR(tc::InferInput::Create(&dim_ptr, "WAV_DATA_DIM", shape, "INT32"),
-              "unable to create 'WAV_DATA_DIM'");
+  RAISE_IF_ERR(tc::InferInput::Create(&dim_ptr, "WAV_DATA_DIM", shape, "INT32"),
+               "unable to create 'WAV_DATA_DIM'");
   std::shared_ptr<tc::InferInput> dim_in(dim_ptr);
-  FAIL_IF_ERR(dim_in->Reset(), "unable to reset WAVE_DATA_DIM");
+  RAISE_IF_ERR(dim_in->Reset(), "unable to reset WAVE_DATA_DIM");
   int nsamples = chunk_byte_size / sizeof(float);
-  FAIL_IF_ERR(dim_in->AppendRaw(reinterpret_cast<uint8_t *>(&nsamples),
-                                sizeof(int32_t)),
-              "unable to set data for WAVE_DATA_DIM");
+  RAISE_IF_ERR(dim_in->AppendRaw(reinterpret_cast<uint8_t *>(&nsamples),
+                                 sizeof(int32_t)),
+               "unable to set data for WAVE_DATA_DIM");
 
   std::vector<tc::InferInput *> inputs = {wave_data_in.get(), dim_in.get()};
 
@@ -151,7 +152,7 @@ void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
   outputs.reserve(2);
   if (end_of_sequence) {
     tc::InferRequestedOutput *raw_lattice_ptr;
-    FAIL_IF_ERR(
+    RAISE_IF_ERR(
         tc::InferRequestedOutput::Create(&raw_lattice_ptr, "RAW_LATTICE"),
         "unable to get 'RAW_LATTICE'");
     raw_lattice.reset(raw_lattice_ptr);
@@ -160,7 +161,7 @@ void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
     // Request the TEXT results only when required for printing
     if (print_results_) {
       tc::InferRequestedOutput *text_ptr;
-      FAIL_IF_ERR(
+      RAISE_IF_ERR(
           tc::InferRequestedOutput::Create(&text_ptr, ctm_ ? "CTM" : "TEXT"),
           "unable to get 'TEXT' or 'CTM'");
       text.reset(text_ptr);
@@ -168,8 +169,8 @@ void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
     }
   } else if (print_partial_results_) {
     tc::InferRequestedOutput *text_ptr;
-    FAIL_IF_ERR(tc::InferRequestedOutput::Create(&text_ptr, "TEXT"),
-                "unable to get 'TEXT'");
+    RAISE_IF_ERR(tc::InferRequestedOutput::Create(&text_ptr, "TEXT"),
+                 "unable to get 'TEXT'");
     text.reset(text_ptr);
     outputs.push_back(text.get());
   }
@@ -188,8 +189,9 @@ void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
 
   TritonClient *client = &clients_[corr_id % nclients_];
   // tc::InferenceServerGrpcClient& triton_client = *client->triton_client;
-  FAIL_IF_ERR(client->triton_client->AsyncStreamInfer(options, inputs, outputs),
-              "unable to run model");
+  RAISE_IF_ERR(
+      client->triton_client->AsyncStreamInfer(options, inputs, outputs),
+      "unable to run model");
 }
 
 void TritonASRClient::WaitForCallbacks() {
@@ -253,7 +255,7 @@ TritonASRClient::TritonASRClient(const std::string &url,
     CreateClientContext();
 
   inference::ModelMetadataResponse model_metadata;
-  FAIL_IF_ERR(
+  RAISE_IF_ERR(
       clients_[0].triton_client->ModelMetadata(&model_metadata, model_name),
       "unable to get model metadata");
 
