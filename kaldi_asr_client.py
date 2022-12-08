@@ -1,10 +1,13 @@
 from ctypes import (
     CDLL,
     CFUNCTYPE,
+    POINTER,
     c_char_p,
+    c_float,
     c_int,
     c_size_t,
     c_void_p,
+    c_bool,
 )
 
 from functools import partial
@@ -13,6 +16,16 @@ LIB = "./build/libkaldi-asr-parallel-client.so"
 
 FUNCS = {
     "client_alloc": CFUNCTYPE(c_void_p),
+    "client_set_config": CFUNCTYPE(
+        c_int,
+        c_void_p,
+        c_float,
+        POINTER(c_char_p),
+        c_char_p,
+        c_int,
+        c_int,
+        c_bool,
+    ),
     "client_infer_begin": CFUNCTYPE(c_int, c_void_p, c_size_t),
     "client_infer_feed": CFUNCTYPE(c_int, c_void_p, c_char_p, c_size_t),
     "client_infer_perform": CFUNCTYPE(c_int, c_void_p),
@@ -23,7 +36,15 @@ FUNCS = {
 
 
 class Client:
-    def __init__(self):
+    def __init__(
+        self,
+        samp_freq,
+        servers=["localhost:8001"],
+        model_name="kaldi_online",
+        ncontextes=10,
+        chunk_length=8160,
+        verbose=False,
+    ):
         c_lib = CDLL(LIB)
 
         for name, prototype in FUNCS.items():
@@ -34,7 +55,24 @@ class Client:
             else:
                 setattr(self, name, func)
 
+        # NULL terminated array
+        servers_cstr = (c_char_p * (len(servers) + 1))()
+
+        for idx, server in enumerate(servers):
+            servers_cstr[idx] = bytes(server, "utf-8")
+
+        servers_cstr[len(servers)] = None
+
         self.client = self.client_alloc()
+        self.client_set_config(
+            self.client,
+            samp_freq,
+            servers_cstr,
+            bytes(model_name, "utf-8"),
+            ncontextes,
+            chunk_length,
+            verbose,
+        )
 
     def wrap_exc(self, func, *args, **kwargs):
         if (result := func(*args, **kwargs)) != 0:
