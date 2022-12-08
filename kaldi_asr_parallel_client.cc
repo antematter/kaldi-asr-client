@@ -166,7 +166,7 @@ int client_set_config_(struct client *client, float samp_freq, char *servers[],
   while (*servers) {
     std::unique_ptr<TritonASRClient> asr_client(
         new TritonASRClient(*servers++, model_name, ncontextes, true, false,
-                            false, samp_freq, TritonCallback(infer_callback)));
+                            samp_freq, TritonCallback(infer_callback)));
     client->clients.push_back(std::move(asr_client));
   }
 

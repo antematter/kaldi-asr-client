@@ -56,16 +56,9 @@ void TritonASRClient::CreateClientContext() {
                          "unable to get request id for response");
             uint64_t corr_id =
                 std::stoi(std::string(request_id, 0, request_id.find("_")));
+
             bool end_of_stream = (request_id.back() == '1');
             if (!end_of_stream) {
-              if (print_partial_results_) {
-                std::vector<std::string> text;
-                RAISE_IF_ERR(result_ptr->StringData("TEXT", &text),
-                             "unable to get TEXT output");
-                std::lock_guard<std::mutex> lk(stdout_m_);
-                std::cout << "CORR_ID " << corr_id << "\t[partial]\t" << text[0]
-                          << '\n';
-              }
               return;
             }
 
@@ -167,12 +160,6 @@ void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
       text.reset(text_ptr);
       outputs.push_back(text.get());
     }
-  } else if (print_partial_results_) {
-    tc::InferRequestedOutput *text_ptr;
-    RAISE_IF_ERR(tc::InferRequestedOutput::Create(&text_ptr, "TEXT"),
-                 "unable to get 'TEXT'");
-    text.reset(text_ptr);
-    outputs.push_back(text.get());
   }
 
   total_audio_ += (static_cast<double>(nsamples) / samp_freq_);
@@ -243,13 +230,11 @@ void TritonASRClient::PrintStats(bool print_latency_stats,
 TritonASRClient::TritonASRClient(const std::string &url,
                                  const std::string &model_name,
                                  const int nclients, bool print_results,
-                                 bool print_partial_results, bool ctm,
-                                 float samp_freq,
+                                 bool ctm, float samp_freq,
                                  const TritonCallback &infer_callback)
     : url_(url), model_name_(model_name), nclients_(nclients),
-      print_results_(print_results),
-      print_partial_results_(print_partial_results), ctm_(ctm),
-      samp_freq_(samp_freq), infer_callback_(infer_callback) {
+      print_results_(print_results), ctm_(ctm), samp_freq_(samp_freq),
+      infer_callback_(infer_callback) {
   nclients_ = std::max(nclients_, 1);
   for (int i = 0; i < nclients_; ++i)
     CreateClientContext();

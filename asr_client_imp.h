@@ -52,7 +52,6 @@ class TritonASRClient {
   double started_at_;
   double total_audio_;
   bool print_results_;
-  bool print_partial_results_;
   bool ctm_;
   std::mutex stdout_m_;
   int samps_per_chunk_;
@@ -72,9 +71,8 @@ class TritonASRClient {
 
 public:
   TritonASRClient(const std::string &url, const std::string &model_name,
-                  const int ncontextes, bool print_results,
-                  bool print_partial_results, bool ctm, float samp_freq,
-                  const TritonCallback &infer_callback_);
+                  const int ncontextes, bool print_results, bool ctm,
+                  float samp_freq, const TritonCallback &infer_callback_);
 
   void CreateClientContext();
   void SendChunk(uint64_t corr_id, bool start_of_sequence, bool end_of_sequence,
