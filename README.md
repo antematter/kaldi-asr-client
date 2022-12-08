@@ -30,6 +30,32 @@ with kaldi_asr_client.Client(samp_freq=16000) as client:
    ...
 ```
 
+In cases of any errors, a simple `Exception` will be raised, detailing the error that occurred. For example:
+
+```py
+Traceback (most recent call last):
+  File "/home/muhammad/kaldi-asr-client/ex.py", line 22, in <module>
+    for index, inference in enumerate(client.infer(wav_bytes)):
+  File "/home/muhammad/kaldi-asr-client/kaldi_asr_client.py", line 96, in infer
+    self.client_infer_perform(self.client)
+  File "/home/muhammad/kaldi-asr-client/kaldi_asr_client.py", line 80, in wrap_exc
+    raise Exception(self.client_last_error(self.client).decode())
+Exception: Non-uniform sample frequency! Expected 22050, got 16000
+```
+
+Another example, in case the server is not reachable:
+
+```py
+Traceback (most recent call last):
+  File "/home/muhammad/kaldi-asr-client/ex.py", line 11, in <module>
+    with Client(
+  File "/home/muhammad/kaldi-asr-client/kaldi_asr_client.py", line 67, in __init__
+    self.client_set_config(
+  File "/home/muhammad/kaldi-asr-client/kaldi_asr_client.py", line 80, in wrap_exc
+    raise Exception(self.client_last_error(self.client).decode())
+Exception: unable to get model metadata: failed to connect to all addresses; last error: UNKNOWN: Failed to connect to remote host: Connection refused
+```
+
 For getting inferences on data, the `infer` method is used which takes a `list` of `bytes` as an argument and returns the corresponding inferences in order. Internally, the library runs the inference process in parallel on the GPU.
 
 ```py
