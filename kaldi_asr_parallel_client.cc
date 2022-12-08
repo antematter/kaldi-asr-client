@@ -2,6 +2,7 @@
 #include "feat/wave-reader.h"
 #include <assert.h>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <istream>
 #include <random>
@@ -23,11 +24,26 @@ struct client {
   std::vector<std::string> outputs;
   size_t expected_inputs;
   size_t iter_idx;
+  std::string last_error;
 };
 
 struct membuf : std::streambuf {
   membuf(char *begin, char *end) { this->setg(begin, begin, end); }
 };
+
+template <typename Callable, typename... Args>
+int invoke_wrap_exception(Callable fn, struct client *client, Args &...args) {
+  try {
+    return fn(client, args...);
+  } catch (const std::exception &e) {
+    client->last_error = e.what();
+    return -1;
+  } catch (...) {
+    std::cerr << "Thrown exception doesn't inherit from std::exception!"
+              << '\n';
+    std::abort();
+  }
+}
 
 int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data,
              const size_t corr_id) {
@@ -63,15 +79,7 @@ int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data,
   return 0;
 }
 
-extern "C" {
-struct client *client_alloc(void) {
-  struct client *client = new struct client;
-  return client;
-}
-
-void client_destroy(struct client *client) { delete client; }
-
-int client_infer_begin(struct client *client, size_t len) {
+int client_infer_begin_(struct client *client, size_t len) {
   client->iter_idx = 0;
   client->expected_inputs = len;
 
@@ -88,7 +96,7 @@ int client_infer_begin(struct client *client, size_t len) {
   return 0;
 }
 
-int client_infer_feed(struct client *client, char *bytes, size_t len) {
+int client_infer_feed_(struct client *client, char *bytes, size_t len) {
   membuf sbuf(bytes, bytes + len);
   std::istream is(&sbuf);
 
@@ -98,7 +106,7 @@ int client_infer_feed(struct client *client, char *bytes, size_t len) {
   return 0;
 }
 
-int client_infer_perform(struct client *client) {
+int client_infer_perform_(struct client *client) {
   if (client->expected_inputs != client->inputs.size()) {
     std::cerr << "Expected " << client->expected_inputs << " inputs but got "
               << client->inputs.size() << "!\n";
@@ -148,6 +156,24 @@ int client_infer_perform(struct client *client) {
   return 0;
 }
 
+extern "C" {
+struct client *client_alloc(void) {
+  struct client *client = new struct client;
+  return client;
+}
+
+int client_infer_begin(struct client *client, size_t len) {
+  return invoke_wrap_exception(client_infer_begin_, client, len);
+}
+
+int client_infer_feed(struct client *client, char *bytes, size_t len) {
+  return invoke_wrap_exception(client_infer_feed_, client, bytes, len);
+}
+
+int client_infer_perform(struct client *client) {
+  return invoke_wrap_exception(client_infer_perform_, client);
+}
+
 /* Iterator since it's not possible to return non-trivial types without using
  * libpython. */
 const char *client_infer_output(struct client *client) {
@@ -158,6 +184,12 @@ const char *client_infer_output(struct client *client) {
 
   return client->outputs[client->iter_idx++].c_str();
 }
+
+const char *client_last_error(struct client *client) {
+  return client->last_error.c_str();
+}
+
+void client_destroy(struct client *client) { delete client; }
 }
 
 #if 0

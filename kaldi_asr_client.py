@@ -1,12 +1,13 @@
 from ctypes import (
     CDLL,
     CFUNCTYPE,
-    POINTER,
     c_char_p,
     c_int,
     c_size_t,
     c_void_p,
 )
+
+from functools import partial
 
 LIB = "./build/libkaldi-asr-parallel-client.so"
 
@@ -16,6 +17,7 @@ FUNCS = {
     "client_infer_feed": CFUNCTYPE(c_int, c_void_p, c_char_p, c_size_t),
     "client_infer_perform": CFUNCTYPE(c_int, c_void_p),
     "client_infer_output": CFUNCTYPE(c_char_p, c_void_p),
+    "client_last_error": CFUNCTYPE(c_char_p, c_void_p),
     "client_destroy": CFUNCTYPE(None, c_void_p),
 }
 
@@ -25,9 +27,21 @@ class Client:
         c_lib = CDLL(LIB)
 
         for name, prototype in FUNCS.items():
-            setattr(self, name, prototype((name, c_lib)))
+            func = prototype((name, c_lib))
+
+            if func.restype == c_int:
+                setattr(self, name, partial(self.wrap_exc, func))
+            else:
+                setattr(self, name, func)
 
         self.client = self.client_alloc()
+
+    def wrap_exc(self, func, *args, **kwargs):
+        if (result := func(*args, **kwargs)) != 0:
+            assert result == -1
+            raise Exception(self.client_last_error(self.client).decode())
+
+        return result
 
     def infer(self, wavs: list[bytes]):
         # Preallocate vector space
