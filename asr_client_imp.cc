@@ -39,9 +39,9 @@
 void TritonASRClient::CreateClientContext() {
   clients_.emplace_back();
   TritonClient &client = clients_.back();
-  RAISE_IF_ERR(tc::InferenceServerGrpcClient::Create(
-                   &client.triton_client, url_, false, false, tc::SslOptions(),
-                   keepalive_options_),
+  RAISE_IF_ERR(tc::InferenceServerGrpcClient::Create(&client.triton_client,
+                                                     url_,
+                                                     /*verbose*/ false),
                "unable to create triton client");
 
   RAISE_IF_ERR(
@@ -231,11 +231,10 @@ TritonASRClient::TritonASRClient(const std::string &url,
                                  const std::string &model_name,
                                  const int nclients, bool print_results,
                                  bool ctm, float samp_freq,
-                                 const tc::KeepAliveOptions keepalive_options,
                                  const TritonCallback &infer_callback)
     : url_(url), model_name_(model_name), nclients_(nclients),
       print_results_(print_results), ctm_(ctm), samp_freq_(samp_freq),
-      keepalive_options_(keepalive_options), infer_callback_(infer_callback) {
+      infer_callback_(infer_callback) {
   nclients_ = std::max(nclients_, 1);
   for (int i = 0; i < nclients_; ++i)
     CreateClientContext();
