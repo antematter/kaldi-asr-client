@@ -130,20 +130,10 @@ int client_infer_perform_(struct client *client) {
     }
   }
 
-  size_t n_per_gpu =
-      std::ceil((double)client->inputs.size() / (double)client->clients.size());
-
-  size_t corr_id = 1;
-  size_t wav_idx = 0;
-
-  for (auto &asr_client : client->clients) {
-    for (size_t i = 0; i < n_per_gpu && wav_idx < client->inputs.size(); i++) {
-      feed_wav(*asr_client, client->inputs[wav_idx++], client->chunk_length,
-               corr_id++, client->verbose);
-    }
+  for (size_t i = 0, corr_id = 1; i < client->inputs.size(); i++, corr_id++) {
+    feed_wav(*client->clients[i % client->clients.size()], client->inputs[i],
+             client->chunk_length, corr_id, client->verbose);
   }
-
-  assert(wav_idx == client->inputs.size());
 
   for (auto &asr_client : client->clients) {
     (*asr_client).WaitForCallbacks();
