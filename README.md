@@ -20,6 +20,8 @@ The `Client` class is used with the help of a context manager to automatically c
 * `model_name`: Name of the model to be passed to Triton server. Default is `"kaldi_online"`.
 * `ncontextes`: Number of clients to run in parallel per GPU (server). Default is `10`. **This spawns `ncontextes` number of threads per GPU, meaning that for 10 parallel clients and 2 GPUs, a total of 20 threads will be created.**
 * `chunk_length`: Size of each chunk of the `WAV_DATA` sent to the server. Default is `8160`.
+* `keepalive_ms`: The period (in milliseconds) after which a keepalive ping is sent to the server to ensure that it's still inferencing. Default is `5000`.
+* `keepalive_timeout_ms`: The period (in milliseconds) to wait for a response to the keepalive request. Default is `10000`.
 * `verbose`: Enable debug output. Default is `False`.
 
 ```py

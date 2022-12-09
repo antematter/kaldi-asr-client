@@ -144,6 +144,7 @@ int client_infer_perform_(struct client *client) {
 
 int client_set_config_(struct client *client, float samp_freq, char *servers[],
                        char *model_name, int ncontextes, int chunk_length,
+                       int keepalive_ms, int keepalive_timeout_ms,
                        bool verbose) {
   auto infer_callback = [client](size_t corr_id,
                                  std::vector<std::string> text) {
@@ -162,10 +163,17 @@ int client_set_config_(struct client *client, float samp_freq, char *servers[],
   client->chunk_length = chunk_length;
   client->samp_freq = samp_freq;
 
+  struct tc::KeepAliveOptions keepalive;
+
+  keepalive.keepalive_time_ms = keepalive_ms;
+  keepalive.keepalive_timeout_ms = keepalive_timeout_ms;
+  keepalive.keepalive_permit_without_calls = true;
+  keepalive.http2_max_pings_without_data = 0;
+
   while (*servers) {
-    std::unique_ptr<TritonASRClient> asr_client(
-        new TritonASRClient(*servers++, model_name, ncontextes, true, false,
-                            samp_freq, TritonCallback(infer_callback)));
+    std::unique_ptr<TritonASRClient> asr_client(new TritonASRClient(
+        *servers++, model_name, ncontextes, true, false, samp_freq, keepalive,
+        TritonCallback(infer_callback)));
     client->clients.push_back(std::move(asr_client));
   }
 
@@ -177,9 +185,11 @@ struct client *client_alloc(void) { return new struct client; }
 
 int client_set_config(struct client *client, float samp_freq, char *servers[],
                       char *model_name, int ncontextes, int chunk_length,
+                      int keepalive_ms, int keepalive_timeout_ms,
                       bool verbose) {
   return invoke_wrap_exception(client_set_config_, client, samp_freq, servers,
-                               model_name, ncontextes, chunk_length, verbose);
+                               model_name, ncontextes, chunk_length,
+                               keepalive_ms, keepalive_timeout_ms, verbose);
 }
 
 int client_infer_begin(struct client *client, size_t len) {

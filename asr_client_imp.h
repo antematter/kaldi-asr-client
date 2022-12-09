@@ -56,6 +56,7 @@ class TritonASRClient {
   std::mutex stdout_m_;
   int samps_per_chunk_;
   float samp_freq_;
+  tc::KeepAliveOptions keepalive_options_;
 
   TritonCallback infer_callback_;
   struct Result {
@@ -72,7 +73,7 @@ class TritonASRClient {
 public:
   TritonASRClient(const std::string &url, const std::string &model_name,
                   const int ncontextes, bool print_results, bool ctm,
-                  float samp_freq, const TritonCallback &infer_callback_);
+                  float samp_freq, const tc::KeepAliveOptions keepalive_options, const TritonCallback &infer_callback_);
 
   void CreateClientContext();
   void SendChunk(uint64_t corr_id, bool start_of_sequence, bool end_of_sequence,
