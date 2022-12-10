@@ -316,11 +316,7 @@ void TritonASRClient::WaitForCallbacks() {
     std::lock_guard<std::mutex> lk(exception_m_);
 
     if (exception_ptr_) {
-      try {
-        std::rethrow_exception(exception_ptr_);
-      } catch (const std::exception &e) {
-        throw e;
-      }
+      std::rethrow_exception(exception_ptr_);
     }
 
     usleep(1000);
