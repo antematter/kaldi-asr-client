@@ -77,6 +77,10 @@ int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data,
 }
 
 int client_infer_begin_(struct client *client, size_t len) {
+  for (auto &asr_client : client->clients) {
+    (*asr_client).InferReset();
+  }
+
   client->iter_idx = 0;
   client->expected_inputs = len;
 

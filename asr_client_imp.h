@@ -14,6 +14,7 @@
 
 #include <grpc_client.h>
 
+#include <cassert>
 #include <functional>
 #include <queue>
 #include <string>
@@ -69,12 +70,23 @@ class TritonASRClient {
   std::unordered_map<uint64_t, Result> results_;
   std::mutex results_m_;
 
+  std::exception_ptr exception_ptr_;
+  std::mutex exception_m_;
+
+  bool streams_started_;
+
+  void StreamCallback(tc::InferResult *result);
+
+  void StartStreams(void);
+  void StopStreams(void);
+
 public:
   TritonASRClient(const std::string &url, const std::string &model_name,
                   const int ncontextes, bool print_results, bool ctm,
                   float samp_freq, const TritonCallback &infer_callback_);
 
   void CreateClientContext();
+  void InferReset();
   void SendChunk(uint64_t corr_id, bool start_of_sequence, bool end_of_sequence,
                  float *chunk, int chunk_byte_size, uint64_t index);
   void WaitForCallbacks();

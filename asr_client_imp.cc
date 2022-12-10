@@ -36,71 +36,68 @@
     }                                                                          \
   }
 
+void TritonASRClient::StreamCallback(tc::InferResult *result) {
+  double end_timestamp = gettime_monotonic();
+  std::unique_ptr<tc::InferResult> result_ptr(result);
+  RAISE_IF_ERR(result_ptr->RequestStatus(), "inference request failed");
+  std::string request_id;
+  RAISE_IF_ERR(result_ptr->Id(&request_id),
+               "unable to get request id for response");
+  uint64_t corr_id =
+      std::stoi(std::string(request_id, 0, request_id.find("_")));
+
+  bool end_of_stream = (request_id.back() == '1');
+  if (!end_of_stream) {
+    return;
+  }
+
+  double start_timestamp;
+  {
+    std::lock_guard<std::mutex> lk(start_timestamps_m_);
+    auto it = start_timestamps_.find(corr_id);
+    if (it != start_timestamps_.end()) {
+      start_timestamp = it->second;
+      start_timestamps_.erase(it);
+    } else {
+      throw std::runtime_error("start_timestamp not found");
+    }
+  }
+
+  if (print_results_) {
+    std::vector<std::string> text;
+    RAISE_IF_ERR(result_ptr->StringData(ctm_ ? "CTM" : "TEXT", &text),
+                 "unable to get TEXT or CTM output");
+    infer_callback_(corr_id, text);
+  }
+
+  std::vector<std::string> lattice_bytes;
+  RAISE_IF_ERR(result_ptr->StringData("RAW_LATTICE", &lattice_bytes),
+               "unable to get RAW_LATTICE output");
+
+  {
+    double elapsed = end_timestamp - start_timestamp;
+    std::lock_guard<std::mutex> lk(results_m_);
+    results_.insert({corr_id, {std::move(lattice_bytes[0]), elapsed}});
+  }
+
+  n_in_flight_.fetch_sub(1, std::memory_order_relaxed);
+};
+
 void TritonASRClient::CreateClientContext() {
   clients_.emplace_back();
   TritonClient &client = clients_.back();
+
   RAISE_IF_ERR(tc::InferenceServerGrpcClient::Create(&client.triton_client,
                                                      url_,
                                                      /*verbose*/ false),
                "unable to create triton client");
-
-  RAISE_IF_ERR(
-      client.triton_client->StartStream(
-          [&](tc::InferResult *result) {
-            double end_timestamp = gettime_monotonic();
-            std::unique_ptr<tc::InferResult> result_ptr(result);
-            RAISE_IF_ERR(result_ptr->RequestStatus(),
-                         "inference request failed");
-            std::string request_id;
-            RAISE_IF_ERR(result_ptr->Id(&request_id),
-                         "unable to get request id for response");
-            uint64_t corr_id =
-                std::stoi(std::string(request_id, 0, request_id.find("_")));
-
-            bool end_of_stream = (request_id.back() == '1');
-            if (!end_of_stream) {
-              return;
-            }
-
-            double start_timestamp;
-            {
-              std::lock_guard<std::mutex> lk(start_timestamps_m_);
-              auto it = start_timestamps_.find(corr_id);
-              if (it != start_timestamps_.end()) {
-                start_timestamp = it->second;
-                start_timestamps_.erase(it);
-              } else {
-                throw std::runtime_error("start_timestamp not found");
-              }
-            }
-
-            if (print_results_) {
-              std::vector<std::string> text;
-              RAISE_IF_ERR(result_ptr->StringData(ctm_ ? "CTM" : "TEXT", &text),
-                           "unable to get TEXT or CTM output");
-              infer_callback_(corr_id, text);
-            }
-
-            std::vector<std::string> lattice_bytes;
-            RAISE_IF_ERR(result_ptr->StringData("RAW_LATTICE", &lattice_bytes),
-                         "unable to get RAW_LATTICE output");
-
-            {
-              double elapsed = end_timestamp - start_timestamp;
-              std::lock_guard<std::mutex> lk(results_m_);
-              results_.insert(
-                  {corr_id, {std::move(lattice_bytes[0]), elapsed}});
-            }
-
-            n_in_flight_.fetch_sub(1, std::memory_order_relaxed);
-          },
-          false),
-      "unable to establish a streaming connection to server");
 }
 
 void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
                                 bool end_of_sequence, float *chunk,
                                 int chunk_byte_size, const uint64_t index) {
+  assert(streams_started_);
+
   // Setting options
   tc::InferOptions options(model_name_);
   options.sequence_id_ = corr_id;
@@ -181,10 +178,35 @@ void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
       "unable to run model");
 }
 
-void TritonASRClient::WaitForCallbacks() {
-  while (n_in_flight_.load(std::memory_order_consume)) {
-    usleep(1000);
+void TritonASRClient::StartStreams() {
+  assert(!streams_started_);
+
+  for (auto &client : clients_) {
+    RAISE_IF_ERR(client.triton_client->StartStream(
+                     [&](tc::InferResult *result) {
+                       try {
+                         StreamCallback(result);
+                       } catch (const std::exception &ex) {
+                         std::lock_guard<std::mutex> lk(exception_m_);
+
+                         if (!exception_ptr_) {
+                           exception_ptr_ = std::current_exception();
+                         }
+                       }
+                     },
+                     false),
+                 "unable to establish a streaming connection to server");
   }
+
+  streams_started_ = true;
+}
+
+void TritonASRClient::StopStreams() {
+  for (auto &client : clients_) {
+    (*client.triton_client).StopStream();
+  }
+
+  streams_started_ = false;
 }
 
 void TritonASRClient::PrintStats(bool print_latency_stats,
@@ -287,4 +309,28 @@ void TritonASRClient::WriteLatticesToFile(
     clat_writer.Write(key, *clat);
   }
   clat_writer.Close();
+}
+
+void TritonASRClient::WaitForCallbacks() {
+  while (n_in_flight_.load(std::memory_order_consume)) {
+    std::lock_guard<std::mutex> lk(exception_m_);
+
+    if (exception_ptr_) {
+      try {
+        std::rethrow_exception(exception_ptr_);
+      } catch (const std::exception &e) {
+        throw e;
+      }
+    }
+
+    usleep(1000);
+  }
+}
+
+void TritonASRClient::InferReset() {
+  StopStreams();
+  exception_ptr_ = nullptr;
+  n_in_flight_.store(0);
+
+  StartStreams();
 }
