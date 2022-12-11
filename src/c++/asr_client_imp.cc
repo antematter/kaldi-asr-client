@@ -83,14 +83,18 @@ void TritonASRClient::StreamCallback(tc::InferResult *result) {
   n_in_flight_.fetch_sub(1, std::memory_order_relaxed);
 };
 
-void TritonASRClient::CreateClientContext() {
-  clients_.emplace_back();
-  TritonClient &client = clients_.back();
+void TritonASRClient::ResetClientContextes() {
+  clients_.clear();
 
-  RAISE_IF_ERR(tc::InferenceServerGrpcClient::Create(&client.triton_client,
-                                                     url_,
-                                                     /*verbose*/ false),
-               "unable to create triton client");
+  for (int i = 0; i < nclients_; ++i) {
+    clients_.emplace_back();
+    TritonClient &client = clients_.back();
+
+    RAISE_IF_ERR(tc::InferenceServerGrpcClient::Create(&client.triton_client,
+                                                       url_,
+                                                       /*verbose*/ false),
+                 "unable to create triton client");
+  }
 }
 
 void TritonASRClient::SendChunk(uint64_t corr_id, bool start_of_sequence,
@@ -258,8 +262,8 @@ TritonASRClient::TritonASRClient(const std::string &url,
       print_results_(print_results), ctm_(ctm), samp_freq_(samp_freq),
       infer_callback_(infer_callback) {
   nclients_ = std::max(nclients_, 1);
-  for (int i = 0; i < nclients_; ++i)
-    CreateClientContext();
+
+  ResetClientContextes();
 
   inference::ModelMetadataResponse model_metadata;
   RAISE_IF_ERR(
@@ -328,5 +332,6 @@ void TritonASRClient::InferReset() {
   exception_ptr_ = nullptr;
   n_in_flight_.store(0);
 
+  ResetClientContextes();
   StartStreams();
 }

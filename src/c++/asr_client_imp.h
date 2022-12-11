@@ -85,7 +85,7 @@ public:
                   const int ncontextes, bool print_results, bool ctm,
                   float samp_freq, const TritonCallback &infer_callback_);
 
-  void CreateClientContext();
+  void ResetClientContextes();
   void InferReset();
   void SendChunk(uint64_t corr_id, bool start_of_sequence, bool end_of_sequence,
                  float *chunk, int chunk_byte_size, uint64_t index);
