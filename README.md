@@ -58,7 +58,7 @@ Traceback (most recent call last):
 Exception: unable to get model metadata: failed to connect to all addresses; last error: UNKNOWN: Failed to connect to remote host: Connection refused
 ```
 
-For getting inferences on data, the `infer` method is used which takes a `list` of `bytes` as an argument and returns the corresponding inferences in order. Internally, the library runs the inference process in parallel on the GPU.
+For getting inferences on data, the `infer` method is used which takes a `list` of `bytes` as an argument and returns the corresponding inferences in order. Internally, the library runs the inference process in parallel on the available GPUs.
 
 ```py
 import kaldi_asr_client
