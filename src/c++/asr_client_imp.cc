@@ -224,7 +224,7 @@ void TritonASRClient::WaitForCallbacks() {
       throw std::runtime_error("Interrupted by SIGINT");
     }
 
-    usleep(1000);
+    usleep(100);
   }
 }
 
