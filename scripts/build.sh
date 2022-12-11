@@ -2,7 +2,7 @@
 
 set -eu
 
-BASEDIR="${0%/*}"
+BASEDIR="${0%/*}/.."
 BASEDIR="$(realpath "$BASEDIR")"
 
 cd "$BASEDIR"
