@@ -2,17 +2,17 @@ from ctypes import (
     CDLL,
     CFUNCTYPE,
     POINTER,
+    c_bool,
     c_char_p,
     c_float,
     c_int,
     c_size_t,
     c_void_p,
-    c_bool,
 )
-
 from functools import partial
+from os.path import abspath, dirname
 
-LIB = "./build/libkaldi-asr-parallel-client.so"
+LIB = f"{dirname(abspath(__file__))}/prebuilts/libkaldi-asr-parallel-client.so"
 
 FUNCS = {
     "client_alloc": CFUNCTYPE(c_void_p),
