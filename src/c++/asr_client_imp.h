@@ -17,6 +17,7 @@
 #include <cassert>
 #include <functional>
 #include <queue>
+#include <signal.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -72,4 +73,5 @@ public:
       const std::unordered_map<uint64_t, std::string> &corr_id_and_keys);
 };
 
+void asr_signal_handler(int sig, siginfo_t *info, void *context);
 #endif // TRITON_KALDI_ASR_CLIENT_H_

@@ -21,6 +21,7 @@ struct client {
   size_t expected_inputs;
   size_t iter_idx;
   std::string last_error;
+  struct sigaction oldact;
 };
 
 struct membuf : std::streambuf {
@@ -211,6 +212,23 @@ const char *client_infer_output(struct client *client) {
 
 const char *client_last_error(struct client *client) {
   return client->last_error.c_str();
+}
+
+void client_store_sighandler(struct client *client) {
+  struct sigaction act;
+
+  memset(&act, 0, sizeof(act));
+  act.sa_sigaction = asr_signal_handler;
+
+  if (sigaction(SIGINT, &act, &client->oldact) == -1) {
+    assert(false); /* Shouldn't fail */
+  }
+}
+
+void client_restore_sighandler(struct client *client) {
+  if (sigaction(SIGINT, &client->oldact, NULL) == -1) {
+    assert(false);
+  };
 }
 
 void client_destroy(struct client *client) { delete client; }
