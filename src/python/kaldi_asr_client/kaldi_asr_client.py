@@ -31,6 +31,8 @@ FUNCS = {
     "client_infer_perform": CFUNCTYPE(c_int, c_void_p),
     "client_infer_output": CFUNCTYPE(c_char_p, c_void_p),
     "client_last_error": CFUNCTYPE(c_char_p, c_void_p),
+    "client_store_sighandler": CFUNCTYPE(None, c_void_p),
+    "client_restore_sighandler": CFUNCTYPE(None, c_void_p),
     "client_destroy": CFUNCTYPE(None, c_void_p),
 }
 
@@ -93,7 +95,12 @@ class Client:
 
             self.client_infer_feed(self.client, wav, len(wav))
 
-        self.client_infer_perform(self.client)
+        self.client_store_sighandler(self.client)
+
+        try:
+            self.client_infer_perform(self.client)
+        finally:
+            self.client_restore_sighandler(self.client)
 
         inferred = []
 
