@@ -57,7 +57,7 @@ class TritonASRClient {
   std::mutex stdout_m_;
   int samps_per_chunk_;
   float samp_freq_;
-
+  bool verbose_;
   TritonCallback infer_callback_;
   struct Result {
     std::string raw_lattice;
@@ -83,7 +83,8 @@ class TritonASRClient {
 public:
   TritonASRClient(const std::string &url, const std::string &model_name,
                   const int ncontextes, bool print_results, bool ctm,
-                  float samp_freq, const TritonCallback &infer_callback_);
+                  float samp_freq, bool verbose,
+                  const TritonCallback &infer_callback_);
 
   void ResetClientContextes();
   void InferReset();
