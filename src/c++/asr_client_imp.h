@@ -27,15 +27,6 @@
 namespace tc = triton::client;
 using TritonCallback = std::function<void(size_t, std::vector<std::string>)>;
 
-// time with arbitrary reference
-double inline gettime_monotonic() {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  double time = ts.tv_sec;
-  time += (double)(ts.tv_nsec) / 1e9;
-  return time;
-}
-
 class TritonASRClient {
   struct TritonClient {
     std::unique_ptr<tc::InferenceServerGrpcClient> triton_client;
@@ -47,28 +38,13 @@ class TritonASRClient {
   std::vector<TritonClient> clients_;
   int nclients_;
   std::vector<uint8_t> chunk_buf_;
-  std::vector<int64_t> shape_;
   int max_chunk_byte_size_;
   std::atomic<int> n_in_flight_;
-  double started_at_;
-  double total_audio_;
-  bool print_results_;
   bool ctm_;
-  std::mutex stdout_m_;
   int samps_per_chunk_;
-  float samp_freq_;
   bool verbose_;
+
   TritonCallback infer_callback_;
-  struct Result {
-    std::string raw_lattice;
-    double latency;
-  };
-
-  std::unordered_map<uint64_t, double> start_timestamps_;
-  std::mutex start_timestamps_m_;
-
-  std::unordered_map<uint64_t, Result> results_;
-  std::mutex results_m_;
 
   std::exception_ptr exception_ptr_;
   std::mutex exception_m_;
@@ -82,8 +58,7 @@ class TritonASRClient {
 
 public:
   TritonASRClient(const std::string &url, const std::string &model_name,
-                  const int ncontextes, bool print_results, bool ctm,
-                  float samp_freq, bool verbose,
+                  const int ncontextes, bool ctm, bool verbose,
                   const TritonCallback &infer_callback_);
 
   void ResetClientContextes();

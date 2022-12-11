@@ -167,9 +167,9 @@ int client_set_config_(struct client *client, float samp_freq, char *servers[],
   client->samp_freq = samp_freq;
 
   while (*servers) {
-    std::unique_ptr<TritonASRClient> asr_client(new TritonASRClient(
-        *servers++, model_name, ncontextes, true, false, samp_freq,
-        client->verbose, TritonCallback(infer_callback)));
+    std::unique_ptr<TritonASRClient> asr_client(
+        new TritonASRClient(*servers++, model_name, ncontextes, false,
+                            client->verbose, TritonCallback(infer_callback)));
     client->clients.push_back(std::move(asr_client));
   }
 
@@ -215,30 +215,3 @@ const char *client_last_error(struct client *client) {
 
 void client_destroy(struct client *client) { delete client; }
 }
-
-#if 0
-int main(int argc, char *const argv[]) {
-  if (argc < 2) {
-    std::cerr << "Usage: " << argv[0] << " FILE" << '\n';
-    return 1;
-  }
-
-  std::ifstream istrm(argv[1], std::ios::binary);
-  kaldi::WaveData wave_data;
-
-  wave_data.Read(istrm);
-
-  float samp_freq = wave_data.SampFreq();
-  double duration = wave_data.Duration();
-
-  std::cout << "Loaded file with frequency " << samp_freq << "hz, duration "
-            << duration << '\n';
-
-  TritonASRClient asr_client(URL, MODEL, NCLIENTS, true, false, false,
-                             samp_freq);
-
-  feed_wav(asr_client, wave_data);
-
-  asr_client.WaitForCallbacks();
-}
-#endif
