@@ -35,9 +35,9 @@ target_sources(kaldi-asr-parallel-client
 )
 target_include_directories(kaldi-asr-parallel-client SYSTEM
   PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/.build/client/include  
-    ${CMAKE_CURRENT_SOURCE_DIR}/.build/kaldi/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/.build/kaldi/tools/openfst/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/client/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/kaldi/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/kaldi/tools/openfst/include
 )
 target_include_directories(kaldi-asr-parallel-client
   PRIVATE
@@ -50,8 +50,8 @@ target_compile_options(kaldi-asr-parallel-client
 )
 target_link_directories(kaldi-asr-parallel-client
   PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/.build/kaldi/src/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/.build/client/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/kaldi/src/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/client/lib
 )
 target_link_libraries(kaldi-asr-parallel-client
   PRIVATE
