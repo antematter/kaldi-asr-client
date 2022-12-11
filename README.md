@@ -2,11 +2,13 @@
 
 # Building
 
+The following commands will create a `pip install`-able wheel at `dist/kaldi_asr_client-*.whl`:
+
 ```sh
-./install_deps.sh
-./build.sh
-cmake -B build
-cmake --build build
+./scripts/install_deps.sh # Install system deps
+./scripts/build.sh # Build kaldi and the triton library, will take a while
+./scripts/setup_prebuilts.sh # Make all built libraries available for Python
+python setup.py bdist_wheel
 ```
 
 # Usage
