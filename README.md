@@ -242,7 +242,7 @@ mv vosk-model-ru-0.22 ~/DeepLearningExamples/Kaldi/SpeechRecognition/data/models
 
 ```sh
 cd ~/DeepLearningExamples/Kaldi/SpeechRecognition
-NVIDIA_VISIBLE_DEVICES=1 ./scripts/docker/launch_server.sh
+GPU=0 GRPC_PORT=8001 ./scripts/docker/launch_server.sh
 ```
 
 Since we changed the `config.pbtxt` file inside the `kaldi_online` directory itself, there is no need to modify the `model_name` on the client side.
