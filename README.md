@@ -279,3 +279,5 @@ Since we changed the `config.pbtxt` file inside the `kaldi_online` directory its
 
 [ libgrpcclient.so ] -> grpc_send()
 ```
+
+However, openssl seems to use versioned symbols so it is not certain that this problem actually exists.
