@@ -67,10 +67,6 @@ public:
   void SendChunk(uint64_t corr_id, bool start_of_sequence, bool end_of_sequence,
                  float *chunk, int chunk_byte_size, uint64_t index);
   void WaitForCallbacks();
-  void PrintStats(bool print_latency_stats, bool print_throughput);
-  void WriteLatticesToFile(
-      const std::string &clat_wspecifier,
-      const std::unordered_map<uint64_t, std::string> &corr_id_and_keys);
 };
 
 void asr_signal_handler(int sig, siginfo_t *info, void *context);
