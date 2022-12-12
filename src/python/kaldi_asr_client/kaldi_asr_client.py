@@ -11,6 +11,7 @@ from ctypes import (
 )
 from functools import partial
 from os.path import abspath, dirname
+from signal import SIGINT, getsignal
 
 LIB = f"{dirname(abspath(__file__))}/prebuilts/libkaldi-asr-parallel-client.so"
 
@@ -77,7 +78,10 @@ class Client:
         )
 
     def wrap_exc(self, func, *args, **kwargs):
-        if (result := func(*args, **kwargs)) != 0:
+        assert func.restype == c_int
+
+        # Positive values are reserved for actual results, and -1 for errors
+        if (result := func(*args, **kwargs)) < 0:
             assert result == -1
             raise Exception(self.client_last_error(self.client).decode())
 
@@ -98,9 +102,16 @@ class Client:
         self.client_store_sighandler(self.client)
 
         try:
-            self.client_infer_perform(self.client)
+            res = self.client_infer_perform(self.client)
         finally:
+            # Ensure we always restore the original signal handler.
             self.client_restore_sighandler(self.client)
+
+        # Returns 1 on receiving SIGINT, then we invoke
+        # the original Python signal handler after restoring it above.
+        # We currently don't handle any signal other than SIGINT.
+        if res:
+            getsignal(SIGINT)(SIGINT, None)
 
         inferred = []
 

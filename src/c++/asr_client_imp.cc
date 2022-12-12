@@ -212,7 +212,7 @@ TritonASRClient::TritonASRClient(const std::string &url,
   n_in_flight_.store(0);
 }
 
-void TritonASRClient::WaitForCallbacks() {
+int TritonASRClient::WaitForCallbacks() {
   while (n_in_flight_.load(std::memory_order_consume)) {
     std::lock_guard<std::mutex> lk(exception_m_);
 
@@ -221,11 +221,13 @@ void TritonASRClient::WaitForCallbacks() {
     }
 
     if (asr_quit_) {
-      throw std::runtime_error("Interrupted by SIGINT");
+      return 1;
     }
 
     usleep(100);
   }
+
+  return 0;
 }
 
 void TritonASRClient::InferReset() {

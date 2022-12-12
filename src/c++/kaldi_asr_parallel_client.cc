@@ -21,7 +21,7 @@ struct client {
   size_t expected_inputs;
   size_t iter_idx;
   std::string last_error;
-  struct sigaction oldact;
+  struct sigaction oldact; /* Python signal handler */
 };
 
 struct membuf : std::streambuf {
@@ -141,7 +141,9 @@ int client_infer_perform_(struct client *client) {
   }
 
   for (auto &asr_client : client->clients) {
-    (*asr_client).WaitForCallbacks();
+    if ((*asr_client).WaitForCallbacks() == 1) {
+      return 1;
+    }
   }
 
   return 0;
