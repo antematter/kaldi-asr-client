@@ -207,10 +207,12 @@ TritonASRClient::TritonASRClient(const std::string &url,
 
 int TritonASRClient::WaitForCallbacks() {
   while (n_in_flight_.load(std::memory_order_consume)) {
-    std::lock_guard<std::mutex> lk(exception_m_);
+    {
+      std::lock_guard<std::mutex> lk(exception_m_);
 
-    if (exception_ptr_) {
-      std::rethrow_exception(exception_ptr_);
+      if (exception_ptr_) {
+        std::rethrow_exception(exception_ptr_);
+      }
     }
 
     if (usleep(100) == -1 && errno == EINTR) {
