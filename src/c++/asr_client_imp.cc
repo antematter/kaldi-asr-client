@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <cerrno>
 #include <cmath>
 #include <cstring>
 #include <iomanip>
@@ -36,14 +37,6 @@
       throw std::runtime_error(ss.str());                                      \
     }                                                                          \
   }
-
-std::atomic<bool> asr_quit_(false);
-
-void asr_signal_handler(int sig, siginfo_t *info, void *context) {
-  if (sig == SIGINT) {
-    asr_quit_ = true;
-  }
-}
 
 void TritonASRClient::StreamCallback(tc::InferResult *result) {
   std::unique_ptr<tc::InferResult> result_ptr(result);
@@ -220,11 +213,9 @@ int TritonASRClient::WaitForCallbacks() {
       std::rethrow_exception(exception_ptr_);
     }
 
-    if (asr_quit_) {
+    if (usleep(100) == -1 && errno == EINTR) {
       return 1;
     }
-
-    usleep(100);
   }
 
   return 0;
@@ -234,7 +225,6 @@ void TritonASRClient::InferReset() {
   StopStreams();
   exception_ptr_ = nullptr;
   n_in_flight_.store(0);
-  asr_quit_ = false;
 
   ResetClientContextes();
   StartStreams();

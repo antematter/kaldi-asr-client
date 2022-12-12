@@ -11,7 +11,6 @@ from ctypes import (
 )
 from functools import partial
 from os.path import abspath, dirname
-from signal import SIGINT, getsignal
 
 LIB = f"{dirname(abspath(__file__))}/prebuilts/libkaldi-asr-parallel-client.so"
 
@@ -32,8 +31,6 @@ FUNCS = {
     "client_infer_perform": CFUNCTYPE(c_int, c_void_p),
     "client_infer_output": CFUNCTYPE(c_char_p, c_void_p),
     "client_last_error": CFUNCTYPE(c_char_p, c_void_p),
-    "client_store_sighandler": CFUNCTYPE(None, c_void_p),
-    "client_restore_sighandler": CFUNCTYPE(None, c_void_p),
     "client_destroy": CFUNCTYPE(None, c_void_p),
 }
 
@@ -99,19 +96,14 @@ class Client:
 
             self.client_infer_feed(self.client, wav, len(wav))
 
-        self.client_store_sighandler(self.client)
-
-        try:
-            res = self.client_infer_perform(self.client)
-        finally:
-            # Ensure we always restore the original signal handler.
-            self.client_restore_sighandler(self.client)
-
-        # Returns 1 on receiving SIGINT, then we invoke
-        # the original Python signal handler after restoring it above.
-        # We currently don't handle any signal other than SIGINT.
-        if res:
-            getsignal(SIGINT)(SIGINT, None)
+        # Returns 1 on receiving being interrupted. Python's internal signal
+        # handler should've been invoked by now, raising a KeyboardInterrupt
+        # perhaps. We raise this exception here as a safeguard in-case a
+        # user-defined handler doesn't interrupt control flow.
+        if self.client_infer_perform(self.client) == 1:
+            raise Exception(
+                "Inference was interrupted but signal handler didn't interrupt control flow, refusing to return incomplete inference data."
+            )
 
         inferred = []
 
