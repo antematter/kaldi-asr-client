@@ -15,6 +15,7 @@ FAILURE="1"
 
 LOG_INFO="INFO"
 LOG_WARN="WARN"
+LOG_ERROR="ERROR"
 
 REPO="$HOME/DeepLearningExamples/Kaldi/SpeechRecognition"
 LAUNCH_SCRIPT="$REPO/scripts/docker/launch_server.sh"
@@ -57,7 +58,7 @@ handle_input() {
 	log "$LOG_INFO" "Stopping container '$container'..."
         kill_server "$container" &
 
-	set -- "$* $!"
+	set -- "$@" $!
     done
 
     i=0
@@ -80,6 +81,15 @@ handle_input() {
     done
 
     sleep "$START_TIMEOUT"
+
+    for server in $(seq 0 $num_servers); do
+        port="$(get_port "$server")"
+
+        nc -W1 localhost "$port" >/dev/null || {
+            log "$LOG_ERROR" "Server at '$port' hasn't started!" >&2
+            return 1
+        }
+    done
 
     return 0
 }
