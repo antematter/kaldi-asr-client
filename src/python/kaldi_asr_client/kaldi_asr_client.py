@@ -12,6 +12,8 @@ from ctypes import (
 from functools import partial
 from os.path import abspath, dirname
 
+from restart_hack import restart_servers
+
 LIB = f"{dirname(abspath(__file__))}/prebuilts/libkaldi-asr-parallel-client.so"
 
 FUNCS = {
@@ -45,6 +47,8 @@ class Client:
         chunk_length=8160,
         verbose=False,
     ):
+        restart_servers(len(servers))
+
         c_lib = CDLL(LIB)
 
         for name, prototype in FUNCS.items():
