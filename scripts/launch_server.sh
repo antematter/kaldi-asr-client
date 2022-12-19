@@ -17,13 +17,16 @@
 : ${GRPC_PORT:=8001}
 
 # Start Triton server 
-docker run --rm -it \
+docker run --rm \
    --gpus device="$GPU" \
    --shm-size=1g \
    --ulimit memlock=-1 \
    --ulimit stack=67108864 \
    -p"$GRPC_PORT":8001 \
+   --entrypoint tritonserver \
    --name "trt_server_asr_$GPU" \
    -v $PWD/data:/data \
    -v $PWD/model-repo:/mnt/model-repo \
-   triton_kaldi_server
+   --mount type=bind,source="$PWD/model-repo/kaldi_online/config.pbtxt",target="/workspace/model-repo/kaldi_online/config.pbtxt" \
+   triton_kaldi_server \
+   --model-repo=/workspace/model-repo # --log-verbose 1 --log-info 1
