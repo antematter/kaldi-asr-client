@@ -29,6 +29,12 @@ python setup.py bdist_wheel
 
 # Usage
 
+First of all, ensure that the `server_launch_daemon.sh` script is running. It launches servers and stores server logs at `/tmp/.launcher_fifo_logs/GPU.log`:
+
+```sh
+./scripts/server_launch_daemon.sh
+```
+
 The python library contains a `Client` class that has an `infer` method for getting inferences on data.
 
 The `Client` class is used with the help of a context manager to automatically cleanup C++ objects. It takes the following keyword arguments:
