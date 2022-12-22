@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 # Copyright (c) 2019-2021 NVIDIA CORPORATION. All rights reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,17 +16,17 @@
 : ${GPU:=0}
 : ${GRPC_PORT:=8001}
 
-# Start Triton server 
+# Start Triton server
 docker run --rm \
-   --gpus device="$GPU" \
-   --shm-size=1g \
-   --ulimit memlock=-1 \
-   --ulimit stack=67108864 \
-   -p"$GRPC_PORT":8001 \
-   --entrypoint tritonserver \
-   --name "trt_server_asr_$GPU" \
-   -v $PWD/data:/data \
-   -v $PWD/model-repo:/mnt/model-repo \
-   --mount type=bind,source="$PWD/model-repo/kaldi_online/config.pbtxt",target="/workspace/model-repo/kaldi_online/config.pbtxt" \
-   triton_kaldi_server \
-   --model-repo=/workspace/model-repo # --log-verbose 1 --log-info 1
+	--gpus device="$GPU" \
+	--shm-size=1g \
+	--ulimit memlock=-1 \
+	--ulimit stack=67108864 \
+	-p"$GRPC_PORT":8001 \
+	--entrypoint tritonserver \
+	--name "trt_server_asr_$GPU" \
+	-v $PWD/data:/data \
+	-v $PWD/model-repo:/mnt/model-repo \
+	--mount type=bind,source="$PWD/model-repo/kaldi_online/config.pbtxt",target="/workspace/model-repo/kaldi_online/config.pbtxt" \
+	triton_kaldi_server \
+	--model-repo=/workspace/model-repo # --log-verbose 1 --log-info 1

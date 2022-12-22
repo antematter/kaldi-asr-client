@@ -2,7 +2,7 @@ import sys
 
 from kaldi_asr_client import Client, restart_servers
 
-SERVERS = ['localhost:8001', 'localhost:8002']
+SERVERS = ["localhost:8001", "localhost:8002"]
 
 wavs = []
 

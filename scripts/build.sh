@@ -22,8 +22,8 @@ OPENSSL_BUILD="$BUILD_DIR/openssl"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-[ -f "$OPENSSL_TAR" ] || curl -L "$OPENSSL" > "$OPENSSL_TAR"
-[ -f "$CLIENT_TAR" ] || curl -L "$CLIENT_LIBS" > "$CLIENT_TAR"
+[ -f "$OPENSSL_TAR" ] || curl -L "$OPENSSL" >"$OPENSSL_TAR"
+[ -f "$CLIENT_TAR" ] || curl -L "$CLIENT_LIBS" >"$CLIENT_TAR"
 [ -d "$KALDI_REPO" ] || git clone --depth=1 "$KALDI"
 
 (
@@ -50,7 +50,7 @@ cd "$BUILD_DIR"
 )
 
 (
-        cd "$KALDI_REPO"
+	cd "$KALDI_REPO"
 
 	make -j"$(nproc)" -C tools
 
