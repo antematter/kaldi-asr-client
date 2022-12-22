@@ -186,7 +186,6 @@ TritonASRClient::TritonASRClient(const std::string &url,
     : url_(url), model_name_(model_name), nclients_(nclients), ctm_(ctm),
       verbose_(verbose), infer_callback_(infer_callback) {
   nclients_ = std::max(nclients_, 1);
-
   ResetClientContextes();
 
   inference::ModelMetadataResponse model_metadata;

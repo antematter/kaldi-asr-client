@@ -150,7 +150,7 @@ int client_infer_perform_(struct client *client) {
 
 int client_set_config_(struct client *client, float samp_freq, char *servers[],
                        char *model_name, int ncontextes, int chunk_length,
-                       bool verbose) {
+                       bool ctm, bool verbose) {
   auto infer_callback = [client](size_t corr_id,
                                  std::vector<std::string> text) {
     assert(corr_id > 0);
@@ -170,7 +170,7 @@ int client_set_config_(struct client *client, float samp_freq, char *servers[],
 
   while (*servers) {
     std::unique_ptr<TritonASRClient> asr_client(
-        new TritonASRClient(*servers++, model_name, ncontextes, false,
+        new TritonASRClient(*servers++, model_name, ncontextes, true,
                             client->verbose, TritonCallback(infer_callback)));
     client->clients.push_back(std::move(asr_client));
   }
@@ -183,9 +183,10 @@ struct client *client_alloc(void) { return new struct client; }
 
 int client_set_config(struct client *client, float samp_freq, char *servers[],
                       char *model_name, int ncontextes, int chunk_length,
-                      bool verbose) {
+                      bool ctm, bool verbose) {
   return invoke_wrap_exception(client_set_config_, client, samp_freq, servers,
-                               model_name, ncontextes, chunk_length, verbose);
+                               model_name, ncontextes, chunk_length, ctm,
+                               verbose);
 }
 
 int client_infer_begin(struct client *client, size_t len) {

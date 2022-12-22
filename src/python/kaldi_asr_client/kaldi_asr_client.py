@@ -27,6 +27,7 @@ FUNCS = {
         c_int,
         c_int,
         c_bool,
+        c_bool,
     ),
     "client_infer_begin": CFUNCTYPE(c_int, c_void_p, c_size_t),
     "client_infer_feed": CFUNCTYPE(c_int, c_void_p, c_char_p, c_size_t),
@@ -45,10 +46,9 @@ class Client:
         model_name="kaldi_online",
         ncontextes=10,
         chunk_length=8160,
+        ctm=False,
         verbose=False,
     ):
-        restart_servers(len(servers))
-
         c_lib = CDLL(LIB)
 
         for name, prototype in FUNCS.items():
@@ -75,6 +75,7 @@ class Client:
             bytes(model_name, "utf-8"),
             ncontextes,
             chunk_length,
+            ctm,
             verbose,
         )
 
