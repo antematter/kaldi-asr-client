@@ -155,9 +155,7 @@ int client_set_config_(struct client *client, float samp_freq, char *servers[],
                                  std::vector<std::string> text) {
     assert(corr_id > 0);
 
-    for (auto &str : text) {
-      client->outputs[corr_id - 1] += str;
-    }
+    client->outputs[corr_id - 1] = text[0];
   };
 
   if (!(*servers)) {
