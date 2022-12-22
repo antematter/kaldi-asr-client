@@ -11,6 +11,7 @@ BUILD_DIR="$PWD/libclient"
 PREBUILTS_DIR="$PWD/prebuilts"
 
 LIBS="
+$BUILD_DIR/grpc_connect_client
 $BUILD_DIR/libkaldi-asr-parallel-client.so
 client/lib/libcrypto.so.1.1
 client/lib/libgrpcclient.so

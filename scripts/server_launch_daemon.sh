@@ -10,6 +10,8 @@ CONTAINER_FMT="trt_server_asr_"
 START_TIMEOUT=5
 STOP_TIMEOUT=5
 
+GRPC_CLIENT_BIN="$(realpath "${0%/*}/../.build/prebuilts/grpc_connect_client")"
+
 SUCCESS="0"
 FAILURE="1"
 
@@ -39,6 +41,7 @@ launch_server() (
 
 handle_input() {
 	gpu=0
+	pids=
 
 	for port; do
 		container="$(get_container "$gpu")"
@@ -46,10 +49,11 @@ handle_input() {
 		log "$LOG_INFO" "Stopping container '$container'..."
 		kill_server "$container" &
 
+		pids="$pids,$!"
 		: "$((gpu += 1))"
 	done
 
-	wait
+	for pid in $pids; do [ "$pid" ] && wait "$pid"; done
 
 	gpu=0
 
@@ -64,16 +68,30 @@ handle_input() {
 
 	sleep "$START_TIMEOUT"
 
-	for port; do
-		nc -W1 localhost "$port" >/dev/null || {
-			log "$LOG_ERROR" "Server at '$port' hasn't started!" >&2
-			return 1
+	time=0
+
+	while [ "$time" -lt "$START_TIMEOUT" ]; do
+		fail=
+
+		for port; do
+			$GRPC_CLIENT_BIN "localhost:$port" || {
+				fail=true
+				log "$LOG_ERROR" "Failed to connect to server at port '$port'"
+			}
+		done
+
+		[ "$fail" ] || {
+			log "$LOG_INFO" "Launched servers"
+			return 0
 		}
+
+		sleep 1
+		: "$((time += 1))"
 	done
 
-	log "$LOG_INFO" "Launched servers"
+	log "$LOG_ERROR" "Timed out while waiting for servers to start"
 
-	return 0
+	return 1
 }
 
 rm -rf "$LOGDIR"
