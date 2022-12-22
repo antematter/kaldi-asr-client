@@ -1,6 +1,8 @@
 import sys
 
-from kaldi_asr_client import Client
+from kaldi_asr_client import Client, restart_servers
+
+SERVERS = ['localhost:8001', 'localhost:8002']
 
 wavs = []
 
@@ -8,12 +10,15 @@ for wav in sys.argv[1:]:
     with open(wav, "rb") as wav_fd:
         wavs.append((wav, wav_fd.read()))
 
+restart_servers(SERVERS)
+
 with Client(
-    samp_freq=22050,
-    servers=["localhost:8001", "localhost:8002"],
+    samp_freq=16000,
+    servers=SERVERS,
     model_name="kaldi_online",
     ncontextes=10,
     chunk_length=8160,
+    ctm=True,
     verbose=False,
 ) as client:
     # Client.infer expects a list of WAV bytes objects
