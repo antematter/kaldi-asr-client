@@ -3,9 +3,9 @@
 set -eu
 
 FIFO="/tmp/.launcher_fifo"
+LOG_FILE="/tmp/.launcher_fifo_log"
 LOGDIR="/tmp/.launcher_fifo_logs"
-PORT=5555
-PORT_BASE=8001
+PORT=${LAUNCHER_PORT:-5555}
 CONTAINER_FMT="trt_server_asr_"
 START_TIMEOUT=5
 STOP_TIMEOUT=5
@@ -14,7 +14,6 @@ SUCCESS="0"
 FAILURE="1"
 
 LOG_INFO="INFO"
-LOG_WARN="WARN"
 LOG_ERROR="ERROR"
 
 REPO="$HOME/DeepLearningExamples/Kaldi/SpeechRecognition"
@@ -28,12 +27,9 @@ get_container() {
     echo "${CONTAINER_FMT}$1"
 }
 
-get_port() {
-    echo "$((PORT_BASE+$1))"
-}
-
 kill_server() {
-    docker container stop "$1" -t "$STOP_TIMEOUT"
+    docker container stop "$1" -t "$STOP_TIMEOUT" ||:
+    docker container rm -f "$1" 2>/dev/null ||:
 }
 
 launch_server() (
@@ -42,54 +38,40 @@ launch_server() (
 )
 
 handle_input() {
-    num_servers="$1"
-    : $((num_servers-=1))
+    gpu=0
 
-    [ "$num_servers" -lt 0 ] && {
-	echo "num_servers < 0!" >&2
-        return 1
-    }
-
-    set --
-
-    for server in $(seq 0 $num_servers); do
-	container="$(get_container "$server")"
+    for port; do
+	container="$(get_container "$gpu")"
 
 	log "$LOG_INFO" "Stopping container '$container'..."
         kill_server "$container" &
 
-	set -- "$@" $!
+	: "$((gpu+=1))"
     done
 
-    i=0
+    wait
 
-    for pid; do
-	    wait "$pid" || log "$LOG_WARN" "Failed to stop container '$(get_container $i)'!" >&2
-            docker container rm -f "$(get_container $i)" 2>/dev/null ||:
+    gpu=0
 
-            : $((i+=1))
-    done
+    for port; do
+	container="$(get_container "$gpu")"
 
-    unset i
+	log "$LOG_INFO" "Launching container '$container' on port '$port' with GPU '$gpu'..."
+	launch_server "$gpu" "$port" &
 
-    for server in $(seq 0 $num_servers); do
-	container="$(get_container "$server")"
-	port="$(get_port "$server")"
-
-	log "$LOG_INFO" "Launching container '$container' on port '$port' with GPU '$server'..."
-	launch_server "$server" "$port" &
+	: "$((gpu+=1))"
     done
 
     sleep "$START_TIMEOUT"
 
-    for server in $(seq 0 $num_servers); do
-        port="$(get_port "$server")"
-
+    for port; do
         nc -W1 localhost "$port" >/dev/null || {
             log "$LOG_ERROR" "Server at '$port' hasn't started!" >&2
             return 1
         }
     done
+
+    log "$LOG_INFO" "Launched servers"
 
     return 0
 }
@@ -100,12 +82,19 @@ mkdir -p "$LOGDIR"
 rm -f "$FIFO"
 mkfifo "$FIFO"
 
+echo "Starting server to accept connections at localhost:$PORT. Logs for this script can be found at '$LOG_FILE'. Docker container logs are present at '$LOGDIR/<GPU>.log'"
+
 {
-    while read -r num_servers; do
-        if handle_input "$num_servers" 1>&2; then
-	    echo "$SUCCESS"
-	else
-	    echo "$FAILURE"
-	fi
-    done
-} < "$FIFO" | nc -lk -p "$PORT" > "$FIFO"
+  {
+      while read -r ports; do
+	  IFS=","
+	  set -- $ports
+
+          if handle_input $ports 1>&2; then
+	      echo "$SUCCESS"
+	  else
+	      echo "$FAILURE"
+	  fi
+      done
+  } < "$FIFO" | nc -lk -p "$PORT" > "$FIFO"
+} 2>&1 | tee "$LOG_FILE"

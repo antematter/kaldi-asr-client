@@ -1,16 +1,14 @@
 import socket
 
-HOST = "localhost"
-PORT = 5555
 
-
-def restart_servers(n_servers):
-    if type(n_servers) != int:
-        raise TypeError("n_servers must be an integer")
+def restart_servers(servers, host="localhost", port=5555):
+    data = ",".join(
+        map(lambda server: str(int(server.split(":")[-1])), servers)
+    )
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
-        client.connect((HOST, PORT))
-        client.send(bytes(str(n_servers), "utf-8") + b"\n")
+        client.connect((host, port))
+        client.send(bytes(data, "utf-8") + b"\n")
 
         ret = int(client.recv(1))
 
