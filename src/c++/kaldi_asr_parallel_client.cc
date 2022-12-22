@@ -40,6 +40,33 @@ int invoke_wrap_exception(Callable fn, struct client *client, Args &...args) {
   }
 }
 
+/* Returns 1 on EINTR */
+int WaitForCallbacks(std::vector<std::unique_ptr<TritonASRClient>> &clients) {
+  while (true) {
+    bool all_done = true;
+
+    for (auto &asr_client : clients) {
+      if (!(*asr_client).IsCallbacksDone()) {
+        all_done = false;
+
+        if (!(*asr_client).IsServerAlive()) {
+          throw std::runtime_error("Server is not live");
+        }
+      }
+    }
+
+    if (all_done) {
+      break;
+    }
+
+    if (usleep(1000) == -1 && errno == EINTR) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 int feed_wav(TritonASRClient &asr_client, kaldi::WaveData &wave_data,
              const int chunk_length, const size_t corr_id, bool verbose) {
   uint64_t index = 0;
@@ -139,13 +166,7 @@ int client_infer_perform_(struct client *client) {
              client->chunk_length, corr_id, client->verbose);
   }
 
-  for (auto &asr_client : client->clients) {
-    if ((*asr_client).WaitForCallbacks() == 1) {
-      return 1;
-    }
-  }
-
-  return 0;
+  return WaitForCallbacks(client->clients);
 }
 
 int client_set_config_(struct client *client, float samp_freq, char *servers[],

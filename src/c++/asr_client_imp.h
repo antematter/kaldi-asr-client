@@ -66,8 +66,8 @@ public:
   void InferReset();
   void SendChunk(uint64_t corr_id, bool start_of_sequence, bool end_of_sequence,
                  float *chunk, int chunk_byte_size, uint64_t index);
-  /* 0 on success, 1 if interrupted */
-  int WaitForCallbacks();
+  bool IsCallbacksDone();
+  bool IsServerAlive();
 };
 
 void asr_signal_handler(int sig, siginfo_t *info, void *context);
