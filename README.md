@@ -29,7 +29,7 @@ python setup.py bdist_wheel
 
 # Usage
 
-First of all, ensure that the `server_launch_daemon.sh` script is running. It launches servers and stores server logs at `/tmp/.launcher_fifo_logs/GPU.log`:
+First of all, ensure that the `server_launch_daemon.sh` script is running. It is responsible for launching and restarting servers on-demand because of a memory leak in Kaldi:
 
 ```sh
 ./scripts/server_launch_daemon.sh
@@ -44,6 +44,7 @@ The `Client` class is used with the help of a context manager to automatically c
 * `model_name`: Name of the model to be passed to Triton server. Default is `"kaldi_online"`.
 * `ncontextes`: Number of clients to run in parallel per GPU (server). Default is `10`. **This spawns `ncontextes` number of threads per GPU, meaning that for 10 parallel clients and 2 GPUs, a total of 20 threads will be created.**
 * `chunk_length`: Size of each chunk of the `WAV_DATA` sent to the server. Default is `8160`.
+* `ctm`: Get `CTM` output instead of `TEXT` from the server.
 * `verbose`: Enable debug output. Default is `False`.
 
 ```py
