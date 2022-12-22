@@ -27,32 +27,44 @@
 cmake_minimum_required(VERSION 3.17..3.20)
 
 add_library(kaldi-asr-parallel-client SHARED)
+add_executable(grpc_connect_client grpc_connect_client.cc)
 
 target_sources(kaldi-asr-parallel-client
   PRIVATE
     kaldi_asr_parallel_client.cc
     asr_client_imp.cc
 )
-target_include_directories(kaldi-asr-parallel-client SYSTEM
-  PRIVATE
+
+set(inc_dirs
     ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/client/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/kaldi/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/kaldi/tools/openfst/include
+)
+
+target_include_directories(kaldi-asr-parallel-client SYSTEM
+  PRIVATE ${inc_dirs}
 )
 target_include_directories(kaldi-asr-parallel-client
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+target_include_directories(grpc_connect_client PRIVATE ${inc_dirs})
+
 target_compile_features(kaldi-asr-parallel-client PRIVATE cxx_std_17)
 target_compile_options(kaldi-asr-parallel-client
   PRIVATE
     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror>
 )
-target_link_directories(kaldi-asr-parallel-client
-  PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/kaldi/src/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/client/lib
+
+set(link_dirs
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/kaldi/src/lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../.build/client/lib
 )
+
+target_link_directories(kaldi-asr-parallel-client
+  PRIVATE ${link_dirs}
+)
+target_link_directories(grpc_connect_client PRIVATE ${link_dirs})
 target_link_libraries(kaldi-asr-parallel-client
   PRIVATE
     -lkaldi-base
@@ -63,16 +75,7 @@ target_link_libraries(kaldi-asr-parallel-client
     -lgrpcclient
     -lprotobuf
 )
-
-#
-# Install
-#
-include(GNUInstallDirs)
-
-install(
-  TARGETS
-    kaldi-asr-parallel-client
-  EXPORT
-    kaldi-asr-parallel-client-targets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+target_link_libraries(grpc_connect_client PRIVATE
+    -lgrpcclient
+    -lprotobuf
 )
