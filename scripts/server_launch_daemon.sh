@@ -104,14 +104,22 @@ echo "Starting server to accept connections at localhost:$PORT. Logs for this sc
 
 {
 	{
-		while read -r ports; do
-			IFS=","
-			set -- $ports
+		while read -r id_ports; do
+			IFS=" "
+			set -- $id_ports
 
-			if handle_input $ports 1>&2; then
-				echo "$SUCCESS"
+			# Extract ID
+			id="$1"
+			shift
+
+			# Extract ports
+			IFS=","
+			set -- $@
+
+			if handle_input "$@" 1>&2; then
+				echo "$id $SUCCESS"
 			else
-				echo "$FAILURE"
+				echo "$id $FAILURE"
 			fi
 		done
 	} <"$FIFO" | nc -lk -p "$PORT" >"$FIFO"
