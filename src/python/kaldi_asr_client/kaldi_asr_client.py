@@ -1,4 +1,3 @@
-import socket
 from ctypes import (
     CDLL,
     CFUNCTYPE,
@@ -12,6 +11,8 @@ from ctypes import (
 )
 from functools import partial
 from os.path import abspath, dirname
+from socket import socket
+from time import time
 
 LIB = f"{dirname(abspath(__file__))}/prebuilts/libkaldi-asr-parallel-client.so"
 
@@ -126,17 +127,37 @@ class Client:
 
 
 def restart_servers(servers, host="localhost", port=5555):
-    data = ",".join(
-        map(lambda server: str(int(server.split(":")[-1])), servers)
+    identifier = str(int(time() * 1000))  # Time since epoch in ms
+
+    # ['localhost:PORT1', 'localhost:PORT2'] -> 'ID PORT1,PORT2,...'
+    data = (
+        identifier
+        + " "
+        + ",".join(
+            map(lambda server: str(int(server.split(":")[-1])), servers)
+        )
     )
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+    with socket() as client:
         client.connect((host, port))
         client.send(bytes(data, "utf-8") + b"\n")
 
-        ret = int(client.recv(1))
+        while True:
+            buf = b""
 
-        if ret != 0:
-            raise Exception(
-                "Daemon failed to restart servers, check server logs"
-            )
+            # We don't buffer as throughput is not important here
+            while (byte := client.recv(1)) != b"\n":
+                buf += byte
+
+            res_identifier, result = buf.decode().split(" ")
+
+            if res_identifier != identifier:
+                # The result is for a stray process
+                continue
+
+            if int(result) != 0:
+                raise Exception(
+                    "Daemon failed to restart servers, check daemon logs for more information"
+                )
+
+            return
