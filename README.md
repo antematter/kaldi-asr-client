@@ -256,35 +256,8 @@ Since we changed the `config.pbtxt` file inside the `kaldi_online` directory its
 
 # Known Issues
 
-* The Triton server can crash on the next connection if the client abruptly exits/crashes without closing the streams. This seems to happen because the server doesn't seem to clear correlation IDs and other associated data by itself for unknown reasons. This shouldn't be a real issue considering that the client library ensures proper cleanup of all the streams regardless of a crash in most cases.
+* The `StopStream()` method of the Triton client library seems to have a delay proportional to the size of input when interrupting the inference operation mid-way. This causes a delay in cancelling the operations of the other active servers in-case multiple servers if one server crashes.
 
-* More than one client cannot connect to the Triton server at a given time. Parallel streams opened within a single client are fine, but launching multiple process of the client itself will again lead to server crashing due to the aformentioned reason. This shouldn't be an issue either since the client library itself can be used to run multiple inferences in parallel, which obviates the need for running two clients parallely.
+* There is a memory leak in [Kaldi](https://github.com/kaldi-asr/kaldi/issues/4814) that is currently worked around with the `./scripts/server_launch_daemon.sh` daemon that restarts servers on each run.
 
-* The client will hang infinitely / deadlock if the server crashes during inference. This is because the triton client library has no way to indicate abrupt closing of streams. Fixing this needs extra patching of the client library from our side but that is not possible due to the client library essentially being un-buildable. See also: https://github.com/triton-inference-server/server/issues/5154
-
-* The Triton client library's build system seems to be a nightmare to work with, due to undefined references all over the place and invalid dependency listings in CMake files. So, we were forced to use the prebuilts of the library from github. However, they link to Openssl 1 whereas systems now have Openssl 3 which is an ABI break. To solve this, an old openssl shared library is built and bundled in the build script. However, due to ABI mismatches between Openssl 1 and 3, this has a potential for minor, hard to debug bugs in the C++ gRPC library (Note that no Python code will be affected). Since Openssl 1 will be `dlopen`-ed from Python, Internal Openssl functions called from public Openssl 1 functions will implicitly be "routed" to the Openssl 3 functions as Python explicitly links to Openssl 3. No such bugs have been observed so far, though.
-
-```
-# Both Openssl 1 and 3's calls to ssl_internal_function get
-# redirected to this symbol
-[ libssl.so.3 ] -> ssl_internal_function(int x, ...) {}
-
-↑
-
-# libssl.so.1 invokes ssl_internal_function(), expecting
-# it to be openssl 1's symbol, but openssl 3's version is called
-# and the openssl 3 function might have a different ABI
-[ libssl.so.1 ] -> ssl_internal_function() | [ libssl.so.3 ] -> ssl_internal_function()
-[ libssl.so.1 ] -> ssl_public_function()   | [ libpython.so.3.11 ] -> ssl_public_function()
-
-↑
-
-# Statically linked into the .so
-[ libgrpc.a ] -> ssl_public_function()     | [ main.py ] -> libpython_internal_ssl_function()
-
-↑
-
-[ libgrpcclient.so ] -> grpc_send()
-```
-
-However, openssl seems to use versioned symbols so it is not certain that this problem actually exists.
+* The Triton client library needs to be rebuilt to link against Openssl 3 and get rid of the requirement for prebuilts. This is not possible until their CMake stuff is figured out.
