@@ -135,6 +135,19 @@ with Client(
         print(f"Inference for {wav_file}: {inference}")
 ```
 
+In-case the servers need to be (re)started with the `./scripts/server_launch_daemon.sh` daemon, the `restart_servers` method should be used before creating the `Client` object:
+
+```py
+from kaldi_asr_client import Client, restart_servers
+
+SERVERS = ["localhost:8001", "localhost:8002"]
+
+restart_servers(SERVERS)
+
+with Client(...) as client:
+    ...
+```
+
 # Server Setup
 
 To run the triton server with the [LibriSpeech Model](https://github.com/NVIDIA/DeepLearningExamples/tree/master/Kaldi/SpeechRecognition#quick-start-guide), follow these steps:
@@ -176,6 +189,31 @@ In-case the server needs to be run on another GPU, the environment variables can
 
 ```sh
 GPU=1 GRPC_PORT=8002 ./scripts/docker/launch_server.sh
+```
+
+6. For getting CTM inferences, the `lattice_postprocessor_rxfilename` config parameter needs to be properly set up in `config.pbtxt`. For this, we need the `word_boundary.int` file aswell.
+
+First of all, place the word boundary file into the model's directory along with the postprocessor config:
+
+```sh
+cp word_boundary.int ~/DeepLearningExamples/Kaldi/SpeechRecognition/data/models/LibriSpeech/
+echo "--word-boundary-rxfilename=/data/models/LibriSpeech/word_boundary.int" > ~/DeepLearningExamples/Kaldi/SpeechRecognition/data/models/LibriSpeech/lattice_postprocess.conf
+```
+
+Finally, modify `Kaldi/SpeechRecognition/model-repo/kaldi_online/config.pbtxt` in accordance with the following diff:
+
+```diff
+--- a/Kaldi/SpeechRecognition/model-repo/kaldi_online/config.pbtxt
++++ b/Kaldi/SpeechRecognition/model-repo/kaldi_online/config.pbtxt
+@@ -32,7 +32,7 @@ parameters [
+   {
+     key: "lattice_postprocessor_rxfilename"
+     value { 
+-      string_value: ""
++      string_value: "/data/models/LibriSpeech/lattice_postprocess.conf"
+     }
+   },
+   {
 ```
 
 Hence, the script can be used to run multiple servers at once, that can be passed into the `servers` argument of the client library.
@@ -252,7 +290,7 @@ cd ~/DeepLearningExamples/Kaldi/SpeechRecognition
 GPU=0 GRPC_PORT=8001 ./scripts/docker/launch_server.sh
 ```
 
-Since we changed the `config.pbtxt` file inside the `kaldi_online` directory itself, there is no need to modify the `model_name` on the client side.
+Since we changed the `config.pbtxt` file inside the `kaldi_online` directory itself, there is no need to modify the `model_name` on the client side. It is likely possible to use a seperate directory for the model's `config.pbtxt` and pass that as the `model_name` on the client-side, but this has not been tested.
 
 # Known Issues
 
